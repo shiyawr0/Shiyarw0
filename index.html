@@ -621,6 +621,41 @@ body::before {
 #leaderboard-list { list-style: none; margin: 12px 0; width: 100%; max-width: 250px; }
 #leaderboard-list li { display: flex; justify-content: space-between; font-family: var(--heading); font-size: 0.9rem; color: var(--white); border-bottom: 1px solid var(--red); padding: 6px 0; letter-spacing: 1px; }
 #leaderboard-list li span:last-child { color: var(--bright-red); font-weight: 700; }
+
+/* SLIDESHOW + FILES VIEW */
+.project-item.has-slides { cursor: pointer; transition: 0.2s; }
+.project-item.has-slides:hover { border-color: var(--bright-red); box-shadow: 0 0 14px var(--red); }
+.slide-btn { cursor: pointer; background: var(--red); box-shadow: 0 0 10px var(--red); }
+.slide-btn:hover { background: var(--bright-red); }
+.files-group { width: 100%; max-width: 750px; margin-bottom: 22px; }
+.files-group h2 { font-family: var(--heading); font-size: 1rem; letter-spacing: 2px; text-transform: uppercase; color: var(--red); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--red); }
+#slideshow { position: fixed; inset: 0; z-index: 9990; background: rgba(0,0,0,0.97); display: none; flex-direction: column; touch-action: pan-y; }
+#slideshow.open { display: flex; }
+.ss-bar { display: flex; align-items: center; gap: 10px; padding: 12px 14px; padding-top: max(12px, env(safe-area-inset-top)); border-bottom: 1px solid var(--red); font-family: var(--heading); letter-spacing: 1px; text-transform: uppercase; color: var(--white); }
+.ss-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95rem; }
+.ss-count { color: var(--bright-red); font-size: 0.9rem; }
+.ss-btn { background: rgba(20,24,33,0.9); border: 1px solid var(--red); color: var(--white); font-family: var(--heading); font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase; padding: 8px 14px; cursor: pointer; }
+.ss-btn:hover { background: var(--red); }
+.ss-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 8px; }
+.ss-stage img { max-width: 100%; max-height: 100%; object-fit: contain; background: #fff; }
+.ss-missing { color: var(--gray); font-family: var(--mono); text-align: center; padding: 40px 20px; border: 1px dashed var(--red); max-width: 90%; word-break: break-all; }
+.ss-ph-title { font-family: var(--heading); color: var(--white); font-size: 1.4rem; letter-spacing: 3px; margin-bottom: 10px; }
+.ss-nav { display: flex; justify-content: space-between; padding: 10px 14px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+
+/* UPGRADES: zoom, captions, transitions, prefs */
+.ss-stage { touch-action: none; overflow: hidden; }
+.ss-slide { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; animation: ssIn 0.25s ease; }
+.ss-slide.back { animation-name: ssInBack; }
+@keyframes ssIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+@keyframes ssInBack { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
+.ss-stage img { user-select: none; -webkit-user-drag: none; will-change: transform; }
+.ss-cap { padding: 8px 14px; text-align: center; color: var(--white); font-size: 0.9rem; }
+.ss-cap:empty { display: none; }
+.project-meta { margin-top: 8px; font-size: 0.8rem; color: var(--gray); }
+.project-meta b { color: var(--bright-red); font-family: var(--heading); letter-spacing: 1px; text-transform: uppercase; }
+.pref-btns { position: fixed; right: 5%; bottom: 14px; display: flex; gap: 8px; z-index: 300; }
+.pref-btn { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--red); background: rgba(6,8,12,0.95); color: var(--white); font-size: 1rem; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,0.7); }
+body.calm *, body.calm *::before, body.calm *::after { animation: none !important; transition: none !important; }
 </style>
 </head>
 
@@ -632,7 +667,7 @@ body::before {
 <div class="top-toolbar">
     <button class="tool-btn" id="theme-btn" onclick="cycleTheme()" title="Switch Color Theme">Theme: Red</button>
     <button class="tool-btn" onclick="exportData()" title="Download JSON Backup">Backup</button>
-    <button class="tool-btn" onclick="showTelemetry()" title="View Session Stats">Stats</button>
+    <button class="tool-btn" onclick="openFiles()" title="View all files">File</button>
 </div>
 
 <!-- BOOT SCREEN -->
@@ -776,7 +811,6 @@ body::before {
     <div id="projects-detail-view" class="view">
         <div class="panel-header-wrap">
             <h1 class="panel-header">Projects</h1>
-            <button class="add-file-btn" onclick="secureAddFile('projects')">+ Add File</button>
         </div>
         <div class="archive-controls">
             <input type="text" class="search-input" id="search-projects" placeholder="Filter projects..." oninput="renderFiles()" />
@@ -787,45 +821,36 @@ body::before {
         <div class="project-list" id="projects-static-list">
 
             <!-- SLOT 1 -->
-            <div class="project-item">
+            <div class="project-item" data-subject="Subject" data-learned="One line about what you learned.">
                 <div class="project-name">My Project Name</div>
                 <div class="project-desc">Short description of what this project is about.</div>
 
                 <div class="attachment-thumbs">
-                    <img class="attachment-thumb" src="my-image.jpg" onclick="window.open('my-image.jpg','_blank')" alt="preview">
+                    <img class="attachment-thumb" src="my-image.jpg" alt="preview">
                 </div>
 
-                <div class="attachments">
-                    <a class="attachment-item" href="my-document.pdf" target="_blank">📄 PDF</a>
-                </div>
             </div>
 
             <!-- SLOT 2 -->
-            <div class="project-item">
+            <div class="project-item" data-subject="Subject" data-learned="One line about what you learned.">
                 <div class="project-name">My Project Name</div>
                 <div class="project-desc">Short description of what this project is about.</div>
 
                 <div class="attachment-thumbs">
-                    <img class="attachment-thumb" src="my-image.jpg" onclick="window.open('my-image.jpg','_blank')" alt="preview">
+                    <img class="attachment-thumb" src="my-image.jpg" alt="preview">
                 </div>
 
-                <div class="attachments">
-                    <a class="attachment-item" href="my-document.pdf" target="_blank">📄 PDF</a>
-                </div>
             </div>
 
             <!-- SLOT 3 -->
-            <div class="project-item">
+            <div class="project-item" data-subject="Subject" data-learned="One line about what you learned.">
                 <div class="project-name">My Project Name</div>
                 <div class="project-desc">Short description of what this project is about.</div>
 
                 <div class="attachment-thumbs">
-                    <img class="attachment-thumb" src="my-image.jpg" onclick="window.open('my-image.jpg','_blank')" alt="preview">
+                    <img class="attachment-thumb" src="my-image.jpg" alt="preview">
                 </div>
 
-                <div class="attachments">
-                    <a class="attachment-item" href="my-document.pdf" target="_blank">📄 PDF</a>
-                </div>
             </div>
 
         </div>
@@ -834,7 +859,6 @@ body::before {
     <div id="flowcharts-view" class="view">
         <div class="panel-header-wrap">
             <h1 class="panel-header">Flowcharts</h1>
-            <button class="add-file-btn" onclick="secureAddFile('flowcharts')">+ Add File</button>
         </div>
         <div class="archive-controls">
             <input type="text" class="search-input" id="search-flowcharts" placeholder="Filter flowcharts..." oninput="renderFiles()" />
@@ -845,22 +869,40 @@ body::before {
         <div class="project-list" id="flowcharts-static-list">
 
             <!-- SLOT 1 -->
-            <div class="project-item">
+            <div class="project-item" data-slides="flowcharts/sequence-{n}.jpg" data-count="10" data-captions="Sequence flowchart 1|Sequence flowchart 2|Sequence flowchart 3|Sequence flowchart 4|Sequence flowchart 5|Sequence flowchart 6|Sequence flowchart 7|Sequence flowchart 8|Sequence flowchart 9|Sequence flowchart 10">
                 <div class="project-name">SEQUENCE FLOWCHARTS</div>
-                <div class="project-desc">10 Sequence flowchars</div>
+                <div class="project-desc">10 Sequence flowcharts</div>
 
                 <div class="attachment-thumbs">
-                    <img class="attachment-thumb" src="IMG_20260911_041108.jpg" onclick="window.open('my-image.jpg','_blank')" alt="preview">
+                    <img class="attachment-thumb" src="IMG_20260911_041108.jpg" alt="preview">
                 </div>
 
-                <div class="attachments">
-                    <a class="attachment-item" href="Sequence Flowchart.docx" target="_blank">📄 PDF</a>
-                </div>
             </div>
 
             <!-- SLOT 2 -->
-            
+            <div class="project-item" data-slides="flowcharts/selection-{n}.jpg" data-count="10" data-captions="Selection flowchart 1|Selection flowchart 2|Selection flowchart 3|Selection flowchart 4|Selection flowchart 5|Selection flowchart 6|Selection flowchart 7|Selection flowchart 8|Selection flowchart 9|Selection flowchart 10">
+                <div class="project-name">SELECTION FLOWCHARTS</div>
+                <div class="project-desc">10 Selection flowcharts</div>
+
+                <!-- Cover thumbnail: appears automatically once flowcharts/selection-01.jpg exists -->
+                <div class="attachment-thumbs">
+                    <img class="attachment-thumb" src="flowcharts/selection-01.jpg" onerror="this.parentNode.remove()" alt="preview">
+                </div>
+
+            </div>
+
             <!-- SLOT 3 -->
+            <div class="project-item" data-slides="flowcharts/loop-{n}.jpg" data-count="10" data-captions="Loop flowchart 1|Loop flowchart 2|Loop flowchart 3|Loop flowchart 4|Loop flowchart 5|Loop flowchart 6|Loop flowchart 7|Loop flowchart 8|Loop flowchart 9|Loop flowchart 10">
+                <div class="project-name">LOOP FLOWCHARTS</div>
+                <div class="project-desc">10 Loop flowcharts</div>
+
+                <!-- Cover thumbnail: appears automatically once flowcharts/loop-01.jpg exists -->
+                <div class="attachment-thumbs">
+                    <img class="attachment-thumb" src="flowcharts/loop-01.jpg" onerror="this.parentNode.remove()" alt="preview">
+                </div>
+
+            </div>
+
 
         </div>
     </div>
@@ -868,7 +910,6 @@ body::before {
     <div id="activities-view" class="view">
         <div class="panel-header-wrap">
             <h1 class="panel-header">Activities</h1>
-            <button class="add-file-btn" onclick="secureAddFile('activities')">+ Add File</button>
         </div>
         <div class="archive-controls">
             <input type="text" class="search-input" id="search-activities" placeholder="Filter activities..." oninput="renderFiles()" />
@@ -879,48 +920,45 @@ body::before {
         <div class="project-list" id="activities-static-list">
 
             <!-- SLOT 1 -->
-            <div class="project-item">
+            <div class="project-item" data-subject="Subject" data-learned="One line about what you learned.">
                 <div class="project-name">My Activity Name</div>
                 <div class="project-desc">Short description of this activity.</div>
 
                 <div class="attachment-thumbs">
-                    <img class="attachment-thumb" src="my-image.jpg" onclick="window.open('my-image.jpg','_blank')" alt="preview">
+                    <img class="attachment-thumb" src="my-image.jpg" alt="preview">
                 </div>
 
-                <div class="attachments">
-                    <a class="attachment-item" href="my-document.pdf" target="_blank">📄 PDF</a>
-                </div>
             </div>
 
             <!-- SLOT 2 -->
-            <div class="project-item">
+            <div class="project-item" data-subject="Subject" data-learned="One line about what you learned.">
                 <div class="project-name">My Activity Name</div>
                 <div class="project-desc">Short description of this activity.</div>
 
                 <div class="attachment-thumbs">
-                    <img class="attachment-thumb" src="my-image.jpg" onclick="window.open('my-image.jpg','_blank')" alt="preview">
+                    <img class="attachment-thumb" src="my-image.jpg" alt="preview">
                 </div>
 
-                <div class="attachments">
-                    <a class="attachment-item" href="my-document.pdf" target="_blank">📄 PDF</a>
-                </div>
             </div>
 
             <!-- SLOT 3 -->
-            <div class="project-item">
+            <div class="project-item" data-subject="Subject" data-learned="One line about what you learned.">
                 <div class="project-name">My Activity Name</div>
                 <div class="project-desc">Short description of this activity.</div>
 
                 <div class="attachment-thumbs">
-                    <img class="attachment-thumb" src="my-image.jpg" onclick="window.open('my-image.jpg','_blank')" alt="preview">
+                    <img class="attachment-thumb" src="my-image.jpg" alt="preview">
                 </div>
 
-                <div class="attachments">
-                    <a class="attachment-item" href="my-document.pdf" target="_blank">📄 PDF</a>
-                </div>
             </div>
 
         </div>
+    </div>
+
+    <!-- FILES (everything in one place) -->
+    <div id="files-view" class="view">
+        <h1 class="panel-header">Files</h1>
+        <div id="files-all" style="width:100%; max-width:750px;"></div>
     </div>
 
     <!-- OTHER -->
@@ -956,6 +994,28 @@ body::before {
     </div>
 
 </main>
+
+<div class="pref-btns">
+    <button class="pref-btn" id="pref-sound" onclick="togglePref('mute')" aria-label="Sound on or off" title="Sound on or off"></button>
+    <button class="pref-btn" id="pref-calm" onclick="togglePref('calm')" aria-label="Calm mode: stop animations" title="Calm mode: stop animations">&#10024;</button>
+</div>
+
+<!-- FULL-SCREEN SLIDESHOW -->
+<div id="slideshow">
+    <div class="ss-bar">
+        <span class="ss-title" id="ss-title"></span>
+        <span class="ss-count" id="ss-count"></span>
+        <button class="ss-btn" onclick="closeSlideshow()" aria-label="Close slideshow">&#10005;</button>
+    </div>
+    <div class="ss-stage" id="ss-stage"></div>
+    <div class="ss-cap" id="ss-cap"></div>
+    <div class="ss-nav">
+        <button class="ss-btn" onclick="stepSlide(-1)">&#9664; Prev</button>
+        <button class="ss-btn" id="ss-play" onclick="togglePlay()">&#9654; Play</button>
+        <button class="ss-btn" onclick="stepSlide(1)">Next &#9654;</button>
+    </div>
+</div>
+
 
 
 <!-- =====================================================
@@ -997,9 +1057,13 @@ body::before {
     }
 
     let waveBars = 28;
+    let bgStarted = false, bgAlive = false;
 
     function renderCombinedBackground() {
+        bgStarted = true;
         bgCtx.clearRect(0, 0, bgW, bgH);
+        if (window.prefs && prefs.calm) { bgAlive = false; return; }
+        bgAlive = true;
         const activeColor = getThemeColor();
 
         // Render Cosmic Dust Swarm
@@ -1070,6 +1134,7 @@ body::before {
         }
     }
     function playBeep(freq = 440, type = 'sine', duration = 0.05) {
+        if (window.prefs && prefs.mute) return;
         try {
             initAudio();
             if (!audioCtx) return;
@@ -1084,22 +1149,6 @@ body::before {
             osc.start();
             osc.stop(audioCtx.currentTime + duration);
         } catch(e) {}
-    }
-let sessionData = JSON.parse(localStorage.getItem('sessionTelemetry')) || { visits: 0, timeSpent: 0 };
-    sessionData.visits++;
-    localStorage.setItem('sessionTelemetry', JSON.stringify(sessionData));
-
-    let sessionStartTime = Date.now();
-    window.addEventListener('beforeunload', () => {
-        let duration = Math.floor((Date.now() - sessionStartTime) / 1000);
-        sessionData.timeSpent += duration;
-        localStorage.setItem('sessionTelemetry', JSON.stringify(sessionData));
-    });
-
-    function showTelemetry() {
-        playBeep(800, 'square', 0.1);
-        let activeSecs = sessionData.timeSpent + Math.floor((Date.now() - sessionStartTime) / 1000);
-        alert(`SESSION TELEMETRY:\n- Total Visits: ${sessionData.visits}\n- Active Time: ${activeSecs}s`);
     }
 
     const themes = [
@@ -1234,7 +1283,8 @@ let sessionData = JSON.parse(localStorage.getItem('sessionTelemetry')) || { visi
         return [];
     }
 
-    function renderFiles() {
+    function renderFiles() { renderFilesCore(); decorateSlides(); }
+    function renderFilesCore() {
         const categories = ['projects', 'flowcharts', 'activities'];
         
         categories.forEach(cat => {
@@ -1268,7 +1318,7 @@ let sessionData = JSON.parse(localStorage.getItem('sessionTelemetry')) || { visi
 
                 const thumbsHtml = images.length ? `
                     <div class="attachment-thumbs">
-                        ${images.map(f => `<img class="attachment-thumb" src="${f.url}" onclick="window.open('${f.url}','_blank')" alt="attachment preview">`).join('')}
+                        ${images.map(f => `<img class="attachment-thumb" src="${f.url}" alt="attachment preview">`).join('')}
                     </div>
                 ` : '';
 
@@ -1343,6 +1393,215 @@ let sessionData = JSON.parse(localStorage.getItem('sessionTelemetry')) || { visi
     }
 
   renderFiles();
+
+    // --- SLIDESHOW + FILES VIEW ---
+    // A card opens a slideshow if it has data-slides (use {n} + data-count for numbered files,
+    // or a "|" separated list), otherwise from the thumbnail images inside it.
+    const ss = { list: [], caps: [], i: 0, z: { s: 1, x: 0, y: 0 }, timer: null };
+
+    function expandSlides(el) {
+        const d = el.dataset;
+        if (d.slides && d.count) {
+            return Array.from({ length: +d.count }, (_, k) => d.slides.replace('{n}', String(k + 1).padStart(2, '0')));
+        }
+        if (d.slides) return d.slides.split('|').map(x => x.trim()).filter(Boolean);
+        return Array.from(el.querySelectorAll('.attachment-thumb')).map(i => i.getAttribute('src'));
+    }
+
+    function decorateSlides(root) {
+        (root || document).querySelectorAll('.project-item').forEach(el => {
+            el.querySelectorAll('.slide-btn, .project-meta').forEach(b => b.remove());
+            el.querySelectorAll('.attachment-thumb').forEach(i => { i.loading = 'lazy'; });
+            const d = el.dataset;
+            if (d.subject || d.learned) {
+                const m = document.createElement('div');
+                m.className = 'project-meta';
+                if (d.subject) { const b = document.createElement('b'); b.textContent = d.subject; m.appendChild(b); }
+                if (d.learned) m.appendChild(document.createTextNode((d.subject ? ' \u2014 ' : '') + 'What I learned: ' + d.learned));
+                const desc = el.querySelector('.project-desc');
+                if (desc) desc.after(m); else el.appendChild(m);
+            }
+            const n = expandSlides(el).length;
+            el.classList.toggle('has-slides', n > 0);
+            if (n > 0) {
+                let row = el.querySelector('.attachments');
+                if (!row) {
+                    row = document.createElement('div');
+                    row.className = 'attachments';
+                    el.appendChild(row);
+                }
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'attachment-item slide-btn';
+                b.textContent = '\u25B6 Slideshow';
+                row.insertBefore(b, row.firstChild);
+            }
+        });
+    }
+
+    function openSlideshow(list, start, title, caps) {
+        playBeep(700, 'sine', 0.05);
+        ss.list = list; ss.caps = caps || []; ss.i = start;
+        document.getElementById('ss-title').textContent = title;
+        document.getElementById('slideshow').classList.add('open');
+        history.pushState({ ss: 1 }, '');
+        showSlide(1);
+    }
+
+    function showSlide(dir) {
+        const n = ss.list.length, src = ss.list[ss.i], stage = document.getElementById('ss-stage');
+        ss.z = { s: 1, x: 0, y: 0 };
+        document.getElementById('ss-count').textContent = (ss.i + 1) + ' / ' + n;
+        document.getElementById('ss-cap').textContent = ss.caps[ss.i] || '';
+        stage.innerHTML = '';
+        const wrap = document.createElement('div');
+        wrap.className = 'ss-slide' + (dir < 0 ? ' back' : '');
+        const img = new Image();
+        img.alt = 'Slide ' + (ss.i + 1);
+        img.draggable = false;
+        img.onerror = () => {
+            if (!wrap.isConnected) return;
+            wrap.innerHTML = '';
+            const m = document.createElement('div');
+            m.className = 'ss-missing';
+            const t = document.createElement('div');
+            t.className = 'ss-ph-title';
+            t.textContent = 'PLACEHOLDER';
+            m.appendChild(t);
+            m.appendChild(document.createTextNode('Slide ' + (ss.i + 1) + ' of ' + n + ' \u2014 add the image at ' + src));
+            wrap.appendChild(m);
+        };
+        img.src = src;
+        wrap.appendChild(img);
+        stage.appendChild(wrap);
+        [1, -1].forEach(k => { new Image().src = ss.list[(ss.i + k + n) % n]; });
+    }
+
+    function stepSlide(d) {
+        const n = ss.list.length;
+        if (n < 2) return;
+        ss.i = (ss.i + d + n) % n;
+        playBeep(500, 'sine', 0.03);
+        showSlide(d);
+        if (ss.timer) startPlay();
+    }
+
+    function startPlay() {
+        clearInterval(ss.timer);
+        ss.timer = setInterval(() => stepSlide(1), 4000);
+        document.getElementById('ss-play').innerHTML = '&#10074;&#10074; Pause';
+    }
+    function stopPlay() {
+        clearInterval(ss.timer);
+        ss.timer = null;
+        document.getElementById('ss-play').innerHTML = '&#9654; Play';
+    }
+    function togglePlay() { if (ss.timer) stopPlay(); else startPlay(); }
+
+    function hideSlideshow() { stopPlay(); document.getElementById('slideshow').classList.remove('open'); }
+    function closeSlideshow() { if (history.state && history.state.ss) history.back(); else hideSlideshow(); }
+    window.addEventListener('popstate', hideSlideshow);
+
+    document.addEventListener('click', e => {
+        if (e.target.closest('a')) return;
+        const card = e.target.closest('.project-item.has-slides');
+        if (!card) return;
+        const list = expandSlides(card);
+        const thumb = e.target.closest('.attachment-thumb');
+        const start = thumb && !card.dataset.slides ? Math.max(0, list.indexOf(thumb.getAttribute('src'))) : 0;
+        const nameEl = card.querySelector('.project-name');
+        const caps = card.dataset.captions ? card.dataset.captions.split('|').map(x => x.trim()) : [];
+        openSlideshow(list, start, nameEl ? nameEl.textContent : '', caps);
+    });
+
+    // Gestures: swipe to change slide, pinch / double-tap / wheel to zoom, drag to pan when zoomed
+    (function () {
+        const stage = document.getElementById('ss-stage'), pts = new Map();
+        let d0 = 1, s0 = 1, sx = 0, sy = 0, moved = false, pinched = false, lastTap = 0, t0 = 0;
+        const apply = () => { const i = stage.querySelector('img'); if (i) i.style.transform = 'translate(' + ss.z.x + 'px,' + ss.z.y + 'px) scale(' + ss.z.s + ')'; };
+        const dist = () => { const [a, b] = Array.from(pts.values()); return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+        const setZoom = v => { ss.z.s = Math.min(5, Math.max(1, v)); if (ss.z.s === 1) { ss.z.x = 0; ss.z.y = 0; } apply(); };
+        stage.addEventListener('pointerdown', e => {
+            try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+            pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (pts.size === 1) { sx = e.clientX; sy = e.clientY; moved = false; pinched = false; t0 = Date.now(); }
+            if (pts.size === 2) { d0 = dist(); s0 = ss.z.s; moved = true; pinched = true; }
+        });
+        stage.addEventListener('pointermove', e => {
+            const p = pts.get(e.pointerId);
+            if (!p) return;
+            const dx = e.clientX - p.x, dy = e.clientY - p.y;
+            p.x = e.clientX; p.y = e.clientY;
+            if (pts.size === 2) setZoom(s0 * dist() / d0);
+            else if (ss.z.s > 1) { ss.z.x += dx; ss.z.y += dy; moved = true; apply(); }
+            else if (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) moved = true;
+        });
+        stage.addEventListener('pointerup', e => {
+            if (!pts.has(e.pointerId)) return;
+            const single = pts.size === 1;
+            pts.delete(e.pointerId);
+            if (!single || pinched) return;
+            const dx = e.clientX - sx, dy = e.clientY - sy;
+            if (ss.z.s === 1 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) { stepSlide(dx < 0 ? 1 : -1); return; }
+            if (!moved && Date.now() - t0 < 300) {
+                if (Date.now() - lastTap < 300) { setZoom(ss.z.s > 1 ? 1 : 2.5); lastTap = 0; }
+                else lastTap = Date.now();
+            }
+        });
+        stage.addEventListener('pointercancel', e => pts.delete(e.pointerId));
+        stage.addEventListener('wheel', e => { e.preventDefault(); setZoom(ss.z.s * (e.deltaY < 0 ? 1.15 : 0.87)); }, { passive: false });
+    })();
+
+    window.addEventListener('keydown', e => {
+        if (!document.getElementById('slideshow').classList.contains('open')) return;
+        e.stopImmediatePropagation();
+        if (e.key === 'ArrowRight') stepSlide(1);
+        else if (e.key === 'ArrowLeft') stepSlide(-1);
+        else if (e.key === 'Escape') closeSlideshow();
+    }, true);
+
+    // Sound + calm-mode preferences (remembered on this device)
+    window.prefs = { mute: false, calm: !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) };
+    try { Object.assign(prefs, JSON.parse(localStorage.getItem('portfolioPrefs')) || {}); } catch (e) {}
+    function applyPrefs() {
+        document.body.classList.toggle('calm', prefs.calm);
+        document.getElementById('pref-sound').innerHTML = prefs.mute ? '&#128263;' : '&#128266;';
+        document.getElementById('pref-calm').style.opacity = prefs.calm ? '0.5' : '1';
+        if (!prefs.calm && bgStarted && !bgAlive) requestAnimationFrame(renderCombinedBackground);
+    }
+    function togglePref(k) {
+        prefs[k] = !prefs[k];
+        try { localStorage.setItem('portfolioPrefs', JSON.stringify(prefs)); } catch (e) {}
+        applyPrefs();
+    }
+    applyPrefs();
+
+    function buildFilesView() {
+        const wrap = document.getElementById('files-all');
+        wrap.innerHTML = '';
+        [['projects', 'Projects'], ['flowcharts', 'Flowcharts'], ['activities', 'Activities']].forEach(([cat, label]) => {
+            const items = Array.from(document.querySelectorAll('#' + cat + '-static-list > .project-item, #' + cat + '-list-container > .project-item'))
+                .filter(el => el.querySelector('.project-name'));
+            const group = document.createElement('div');
+            group.className = 'files-group';
+            group.innerHTML = '<h2>' + label + ' (' + items.length + ')</h2>';
+            const list = document.createElement('div');
+            list.className = 'project-list';
+            if (items.length) items.forEach(el => list.appendChild(el.cloneNode(true)));
+            else list.innerHTML = '<div class="project-item"><div class="project-desc">Nothing here yet.</div></div>';
+            group.appendChild(list);
+            wrap.appendChild(group);
+        });
+        decorateSlides(wrap);
+    }
+
+    function openFiles() {
+        playBeep(800, 'square', 0.1);
+        buildFilesView();
+        if (viewHistory[viewHistory.length - 1] !== 'files-view') navigate('files-view');
+    }
+
+    decorateSlides();
 
     // BOOT SEQUENCE
     const logsContainer = document.getElementById('terminal-logs');
